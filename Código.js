@@ -9,7 +9,7 @@ const CFG = {
   HORARIO: scriptProperties.getProperty('horario'),
   PLANTILLA: scriptProperties.getProperty('plantilla')
 };
-//prueba
+
 const getNm = (c) => {
   const p = c.includes("ESA") ? CFG.PRE.replace(/\s/g, "") : CFG.PRE;
   return `${p} ${c} ${CFG.ANIO}`;
