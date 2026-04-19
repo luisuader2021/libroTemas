@@ -1,5 +1,4 @@
 const scriptProperties = PropertiesService.getScriptProperties();
-    // scriptProperties.getProperty('FLD_ID'),
 
 const CFG = {
   PRE: "L. Temas",
