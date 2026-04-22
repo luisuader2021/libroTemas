@@ -515,6 +515,149 @@ function actualizarDesdePanelControl3() {
   log("✅ Proceso finalizado exitosamente.");
 }
 
+function actualizarDesdePanelControl4() {
+  const ss = SpreadsheetApp.openById(CFG.SS_DATA);
+  const panel = ss.getSheetByName("Panel de Control");
+  const hojaMasDatos = ss.getSheetByName("masdatos");
+  const hojaDias = ss.getSheetByName("dias");
+  const celdaConsola = panel.getRange("B6");
+  
+  celdaConsola.clearContent();
+  const log = (msg) => {
+    const v = celdaConsola.getValue();
+    celdaConsola.setValue(v ? v + "\n" + msg : msg);
+    SpreadsheetApp.flush();
+  };
+
+  log("🚀 Iniciando Sincronización Total...");
+
+  // 1. LEER CONFIGURACIÓN DEL PANEL
+  const fechaCorte = panel.getRange("B3").getValue();
+  if (!(fechaCorte instanceof Date)) {
+    log("❌ ERROR: La celda B3 debe contener una fecha válida.");
+    return;
+  }
+  fechaCorte.setHours(0,0,0,0);
+
+  const filtroCursos = panel.getRange("C3").getValue() ? panel.getRange("C3").getValue().toString().toUpperCase().split(",").map(s => s.trim()) : [];
+  const filtroMaterias = panel.getRange("D3").getValue() ? panel.getRange("D3").getValue().toString().toUpperCase().split(",").map(s => s.trim()) : [];
+  
+  const añoActual = fechaCorte.getFullYear();
+  const finClases = new Date(añoActual, 11, 20); // 20 de Diciembre
+
+  // 2. CARGAR DICCIONARIO DE FERIADOS/OBSERVACIONES
+  // Ajustado: Lee desde Columna E (Fecha) hasta H (Observación) -> Range(2, 5, 213, 4)
+  const datosDias = hojaDias.getRange(2, 5, 213, 4).getValues(); 
+  const dictObs = {};
+  datosDias.forEach(f => {
+    if (f[0] instanceof Date) {
+      const key = Utilities.formatDate(f[0], "GMT-3", "yyyyMMdd");
+      dictObs[key] = f[3] ? f[3].toString().trim() : ""; 
+    }
+  });
+
+  const mXC = obtenerObjetoMaterias(hojaMasDatos, "A2:B");
+  const folder = DriveApp.getFolderById(CFG.FLD);
+
+  // 3. PROCESAR CURSOS
+  for (let curso in mXC) {
+    if (filtroCursos.length > 0 && !filtroCursos.includes(curso.toUpperCase())) continue;
+    
+    const files = folder.getFilesByName(getNm(curso));
+    if (!files.hasNext()) continue;
+
+    const ssCurso = SpreadsheetApp.openById(files.next().getId());
+    log(`📂 Procesando Curso: ${curso}`);
+
+    mXC[curso].forEach(nombreM => {
+      if (filtroMaterias.length > 0 && !filtroMaterias.includes(nombreM.toUpperCase())) return;
+      
+      const hoja = ssCurso.getSheetByName(nombreM);
+      if (!hoja) return;
+
+      const infoHorario = buscarDiasMateria(nombreM, curso);
+      if (infoHorario.dias.length === 0) return;
+
+      // Actualizar profesor en E1 siempre
+      if (infoHorario.profesor) hoja.getRange("E1").setValue(infoHorario.profesor);
+
+      // Generar fechas ideales según el NUEVO horario (desde la fecha de corte)
+      const fechasIdealesNuevas = new Set();
+      let fLoop = new Date(fechaCorte);
+      while (fLoop <= finClases) {
+        if (infoHorario.dias.includes(fLoop.getDay())) {
+          fechasIdealesNuevas.add(Utilities.formatDate(fLoop, "GMT-3", "yyyyMMdd"));
+        }
+        fLoop.setDate(fLoop.getDate() + 1);
+      }
+
+      const rango = hoja.getRange("A3:E214");
+      const valoresActuales = rango.getValues();
+      const resultadoFinal = [];
+      let huboCambio = false;
+
+      // FILTRAR Y COMBINAR
+      valoresActuales.forEach(fila => {
+        if (!(fila[0] instanceof Date)) return;
+        
+        const key = Utilities.formatDate(fila[0], "GMT-3", "yyyyMMdd");
+        fila[0].setHours(0,0,0,0);
+
+        if (fila[0] < fechaCorte) {
+          // Historial: No se toca lo anterior a la fecha de corte
+          resultadoFinal.push(fila);
+        } else {
+          // Futuro: Verificamos si la fecha sigue estando en el horario
+          const tieneDatos = (fila[2].toString().trim() !== "" || fila[3].toString().trim() !== "");
+          
+          if (fechasIdealesNuevas.has(key)) {
+            // La fecha coincide con el nuevo horario -> La mantenemos y actualizamos observación
+            if (!tieneDatos && fila[4] !== dictObs[key]) {
+              fila[4] = dictObs[key] || "";
+              huboCambio = true;
+            }
+            resultadoFinal.push(fila);
+            fechasIdealesNuevas.delete(key); // Ya la procesamos
+          } else {
+            // La fecha NO está en el nuevo horario
+            if (tieneDatos) {
+              // Si el profe escribió algo, la dejamos (aunque ya no sea día de clase)
+              resultadoFinal.push(fila);
+            } else {
+              // Si está vacía, la eliminamos porque el horario cambió
+              huboCambio = true;
+            }
+          }
+        }
+      });
+
+      // Agregar las fechas nuevas del nuevo horario que no existían antes
+      if (fechasIdealesNuevas.size > 0) {
+        huboCambio = true;
+        fechasIdealesNuevas.forEach(keyStr => {
+          const y = parseInt(keyStr.substring(0,4)), 
+                m = parseInt(keyStr.substring(4,6))-1, 
+                d = parseInt(keyStr.substring(6,8));
+          resultadoFinal.push([new Date(y, m, d), "", "", "", dictObs[keyStr] || ""]);
+        });
+      }
+
+      // 4. ESCRIBIR RESULTADOS SI HUBO CAMBIOS
+      if (huboCambio) {
+        log(`   ✨ ${nombreM}: Cronograma actualizado.`);
+        resultadoFinal.sort((a, b) => a[0].getTime() - b[0].getTime());
+        rango.clearContent();
+        if (resultadoFinal.length > 0) {
+          // Limitamos a 212 para no desbordar el diseño del libro (fila 3 a 214)
+          hoja.getRange(3, 1, Math.min(resultadoFinal.length, 212), 5).setValues(resultadoFinal.slice(0, 212));
+        }
+      }
+    });
+  }
+  log("✅ Sincronización finalizada exitosamente.");
+}
+
+
 function actualizarPermisosSemanalesEficiente() {
   actualizarSoloProfesores();
 
