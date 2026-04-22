@@ -113,7 +113,7 @@ function obtenerObjetoMaterias(h, r) {
   });
   return m;
 }
-function actualizarDesdePanelControl() {
+/* function actualizarDesdePanelControl() {
   const ss = SpreadsheetApp.openById(CFG.SS_DATA);
   const panel = ss.getSheetByName("Panel de Control");
   const hojaMasDatos = ss.getSheetByName("masdatos");
@@ -162,7 +162,7 @@ function actualizarDesdePanelControl() {
     }
   }
   log("✅ Proceso finalizado.");
-}
+}*/
 function buscarDiasMateria(materia, curso) {
   try {
     const ss = SpreadsheetApp.openById(CFG.HORARIO), h = ss.getSheetByName(curso);
@@ -426,7 +426,7 @@ function auditoriaSemanalCargas() {
   log(`🏁 Proceso finalizado.`);
 }
 
-function actualizarDesdePanelControl3() {
+/* function actualizarDesdePanelControl3() {
   const ss = SpreadsheetApp.openById(CFG.SS_DATA);
   const panel = ss.getSheetByName("Panel de Control");
   const hojaMasDatos = ss.getSheetByName("masdatos");
@@ -513,7 +513,7 @@ function actualizarDesdePanelControl3() {
     });
   }
   log("✅ Proceso finalizado exitosamente.");
-}
+}*/
 
 function actualizarDesdePanelControl4() {
   const ss = SpreadsheetApp.openById(CFG.SS_DATA);
