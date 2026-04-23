@@ -1,5 +1,4 @@
 const scriptProperties = PropertiesService.getScriptProperties();
-
 const CFG = {
   PRE: "L. Temas",
   ANIO: "26",
@@ -104,6 +103,7 @@ function generarCopiasCursosYMaterias() {
   }
   console.log("Copia finalizada.");
 }
+
 function obtenerObjetoMaterias(h, r) {
   const v = h.getRange(r).getValues();
   let m = {}, cA = null;
@@ -113,56 +113,7 @@ function obtenerObjetoMaterias(h, r) {
   });
   return m;
 }
-/* function actualizarDesdePanelControl() {
-  const ss = SpreadsheetApp.openById(CFG.SS_DATA);
-  const panel = ss.getSheetByName("Panel de Control");
-  const hojaMasDatos = ss.getSheetByName("masdatos");
-  if (!panel || !hojaMasDatos) return console.error("Faltan hojas críticas.");
-  const celdaConsola = panel.getRange("B6");
-  celdaConsola.clearContent();
-  const log = (msg) => {
-    const valorActual = celdaConsola.getValue();
-    celdaConsola.setValue(valorActual ? valorActual + "\n" + msg : msg);
-    SpreadsheetApp.flush();
-  };
-  log("⏳ Iniciando proceso ordenado...");
-  let fechaInicio = panel.getRange("B3").getValue();
-  if (!(fechaInicio instanceof Date) || isNaN(fechaInicio)) {
-    fechaInicio = new Date();
-    log("ℹ️ B3 vacío. Usando fecha actual.");
-  }
-  fechaInicio.setHours(0,0,0,0);
-  const filtroC3 = panel.getRange("C3").getValue().toString().trim();
-  const filtroD3 = panel.getRange("D3").getValue().toString().trim();
-  const filtroCursos = filtroC3 ? filtroC3.split(",").map(s => s.trim().toUpperCase()) : [];
-  const filtroMaterias = filtroD3 ? filtroD3.split(",").map(s => s.trim().toUpperCase()) : [];
-  const mXC = obtenerObjetoMaterias(hojaMasDatos, "A2:B");
-  const folder = DriveApp.getFolderById(CFG.FLD);
-  for (let curso in mXC) {
-    if (filtroCursos.length > 0 && !filtroCursos.includes(curso.toUpperCase())) continue;
-    const nombreArchivo = getNm(curso);
-    const files = folder.getFilesByName(nombreArchivo);
-    if (files.hasNext()) {
-      log(`📂 Procesando: ${curso}...`);
-      const file = files.next();
-      try {
-        const ssCurso = SpreadsheetApp.openById(file.getId());
-        mXC[curso].forEach(nombreM => {
-          if (filtroMaterias.length > 0 && !filtroMaterias.includes(nombreM.toUpperCase())) return;
-          const hojaMat = ssCurso.getSheetByName(nombreM);
-          if (hojaMat) {
-            aplicarReemplazoSelectivoConLogs(curso, nombreM, hojaMat, fechaInicio, log);
-          }
-        });
-      } catch (e) {
-        log(`❌ ERROR en ${curso}: ${e.message}`);
-      }
-    } else {
-      log(`⚠️ Archivo no encontrado: ${nombreArchivo}`);
-    }
-  }
-  log("✅ Proceso finalizado.");
-}*/
+
 function buscarDiasMateria(materia, curso) {
   try {
     const ss = SpreadsheetApp.openById(CFG.HORARIO), h = ss.getSheetByName(curso);
@@ -426,94 +377,6 @@ function auditoriaSemanalCargas() {
   log(`🏁 Proceso finalizado.`);
 }
 
-/* function actualizarDesdePanelControl3() {
-  const ss = SpreadsheetApp.openById(CFG.SS_DATA);
-  const panel = ss.getSheetByName("Panel de Control");
-  const hojaMasDatos = ss.getSheetByName("masdatos");
-  const hojaDias = ss.getSheetByName("dias");
-  const celdaConsola = panel.getRange("B6");
-  celdaConsola.clearContent();
-  const log = (msg) => {
-    const v = celdaConsola.getValue();
-    celdaConsola.setValue(v ? v + "\n" + msg : msg);
-    SpreadsheetApp.flush();
-  };
-  log("🚀 Iniciando Sincronización Total...");
-  const filtroCursos = panel.getRange("C3").getValue() ? panel.getRange("C3").getValue().toString().toUpperCase().split(",") : [];
-  const filtroMaterias = panel.getRange("D3").getValue() ? panel.getRange("D3").getValue().toString().toUpperCase().split(",") : [];
-  const añoActual = new Date().getFullYear();
-  const inicioClases = new Date(añoActual, 2, 1); 
-  const finClases = new Date(añoActual, 11, 20);
-  const datosDias = hojaDias.getRange(2, 5, 213, 4).getValues(); 
-  const dictObs = {};
-  datosDias.forEach(f => {
-    if (f[0] instanceof Date) {
-      const key = Utilities.formatDate(f[0], "GMT-3", "yyyyMMdd");
-      dictObs[key] = f[3] ? f[3].toString().trim() : ""; 
-    }
-  });
-  const mXC = obtenerObjetoMaterias(hojaMasDatos, "A2:B");
-  const folder = DriveApp.getFolderById(CFG.FLD);
-  for (let curso in mXC) {
-    if (filtroCursos.length > 0 && !filtroCursos.includes(curso.toUpperCase())) continue;
-    const files = folder.getFilesByName(getNm(curso));
-    if (!files.hasNext()) continue;
-    const ssCurso = SpreadsheetApp.openById(files.next().getId());
-    log(`📂 Procesando Curso: ${curso}`);
-    mXC[curso].forEach(nombreM => {
-      if (filtroMaterias.length > 0 && !filtroMaterias.includes(nombreM.toUpperCase())) return;
-      const hoja = ssCurso.getSheetByName(nombreM);
-      if (!hoja) return;
-      const infoHorario = buscarDiasMateria(nombreM, curso);
-      if (infoHorario.dias.length === 0) return;
-      if (infoHorario.profesor) hoja.getRange("E1").setValue(infoHorario.profesor);
-      const fechasIdeales = new Set();
-      let fLoop = new Date(inicioClases);
-      while (fLoop <= finClases) {
-        if (infoHorario.dias.includes(fLoop.getDay())) {
-          fechasIdeales.add(Utilities.formatDate(fLoop, "GMT-3", "yyyyMMdd"));
-        }
-        fLoop.setDate(fLoop.getDate() + 1);
-      }
-      const rango = hoja.getRange("A3:E214");
-      const valoresActuales = rango.getValues();
-      const resultadoFinal = [];
-      let huboCambio = false;
-      valoresActuales.forEach(fila => {
-        if (!(fila[0] instanceof Date)) return;
-        const key = Utilities.formatDate(fila[0], "GMT-3", "yyyyMMdd");
-        const tieneDatos = (fila[2].toString().trim() !== "" || fila[3].toString().trim() !== "");
-        if (fechasIdeales.has(key)) {
-          if (!tieneDatos && fila[4] !== dictObs[key]) {
-            fila[4] = dictObs[key] || "";
-            huboCambio = true;
-          }
-          resultadoFinal.push(fila);
-          fechasIdeales.delete(key);
-        } else {
-          if (tieneDatos) resultadoFinal.push(fila);
-          else huboCambio = true;
-        }
-      });
-      if (fechasIdeales.size > 0) {
-        huboCambio = true;
-        fechasIdeales.forEach(keyStr => {
-          const y = parseInt(keyStr.substring(0,4)), m = parseInt(keyStr.substring(4,6))-1, d = parseInt(keyStr.substring(6,8));
-          resultadoFinal.push([new Date(y, m, d), "", "", "", dictObs[keyStr] || ""]);
-        });
-      }
-      if (huboCambio) {
-        log(`   ✨ ${nombreM}: Cronograma y Profesor actualizados.`);
-        resultadoFinal.sort((a, b) => a[0].getTime() - b[0].getTime());
-        rango.clearContent();
-        if (resultadoFinal.length > 0) {
-          hoja.getRange(3, 1, resultadoFinal.length, 5).setValues(resultadoFinal.slice(0, 212));
-        }
-      }
-    });
-  }
-  log("✅ Proceso finalizado exitosamente.");
-}*/
 
 function actualizarDesdePanelControl4() {
   const ss = SpreadsheetApp.openById(CFG.SS_DATA);
@@ -824,4 +687,150 @@ function verificarIntegridadArchivosDiaria() {
   } else {
     Logger.log("✅ Todos los archivos están presentes.");
   }
+}
+
+
+function corregirDiferenciasDesdePanel() {
+  const ss = SpreadsheetApp.openById(CFG.SS_DATA);
+  const panel = ss.getSheetByName("Panel de Control");
+  const hojaMasDatos = ss.getSheetByName("masdatos");
+  const hojaDias = ss.getSheetByName("dias");
+  const celdaConsola = panel.getRange("B6");
+  const celdaProgreso = panel.getRange("D12");
+
+  // 1. OBTENER CONFIGURACIÓN
+  const fechaCorte = panel.getRange("B12").getValue();
+  if (!(fechaCorte instanceof Date)) {
+    celdaConsola.setValue("❌ Error: B12 debe ser una fecha.");
+    return;
+  }
+  fechaCorte.setHours(0,0,0,0);
+
+  // Leer cursos ya procesados para no repetir
+  const progresoActual = celdaProgreso.getValue().toString();
+  const cursosTerminados = progresoActual ? progresoActual.split(",").map(s => s.trim().toUpperCase()) : [];
+
+  const log = (msg) => {
+    const v = celdaConsola.getValue();
+    celdaConsola.setValue(v ? v + "\n" + msg : msg);
+    SpreadsheetApp.flush();
+  };
+
+  log(`🛠️ Iniciando Corrección desde ${fechaCorte.toLocaleDateString()}...`);
+
+  // 2. CARGAR DICCIONARIO DE OBSERVACIONES
+  const datosDias = hojaDias.getRange(2, 5, 213, 4).getValues(); 
+  const dictObs = {};
+  datosDias.forEach(f => {
+    if (f[0] instanceof Date) {
+      const key = Utilities.formatDate(f[0], "GMT-3", "yyyyMMdd");
+      dictObs[key] = f[3] ? f[3].toString().trim() : ""; 
+    }
+  });
+
+  const mXC = obtenerObjetoMaterias(hojaMasDatos, "A2:B");
+  const folder = DriveApp.getFolderById(CFG.FLD);
+  const añoActual = fechaCorte.getFullYear();
+  const finClases = new Date(añoActual, 11, 20);
+
+  // 3. PROCESAR CURSOS
+  for (let curso in mXC) {
+    const cursoUpper = curso.toUpperCase();
+    
+    // Saltar si ya se procesó en una ejecución anterior
+    if (cursosTerminados.includes(cursoUpper)) {
+      continue; 
+    }
+
+    const files = folder.getFilesByName(getNm(curso));
+    if (!files.hasNext()) {
+      log(`⚠️ Saltando ${curso}: Archivo no hallado.`);
+      continue;
+    }
+
+    log(`📂 Corrigiendo: ${curso}...`);
+    const ssCurso = SpreadsheetApp.openById(files.next().getId());
+
+    mXC[curso].forEach(nombreM => {
+      const hoja = ssCurso.getSheetByName(nombreM);
+      if (!hoja) return;
+
+      const infoHorario = buscarDiasMateria(nombreM, curso);
+      if (infoHorario.dias.length === 0) return;
+
+      // Actualizar profesor en E1
+      if (infoHorario.profesor) hoja.getRange("E1").setValue(infoHorario.profesor);
+
+      // Generar fechas ideales desde la fecha de corte
+      const fechasNuevas = new Set();
+      let fLoop = new Date(fechaCorte);
+      while (fLoop <= finClases) {
+        if (infoHorario.dias.includes(fLoop.getDay())) {
+          fechasNuevas.add(Utilities.formatDate(fLoop, "GMT-3", "yyyyMMdd"));
+        }
+        fLoop.setDate(fLoop.getDate() + 1);
+      }
+
+      const rango = hoja.getRange("A3:E214");
+      const valores = rango.getValues();
+      const resultado = [];
+      let cambio = false;
+
+      // Procesar filas existentes
+      valores.forEach(fila => {
+        if (!(fila[0] instanceof Date)) return;
+        
+        const fFila = fila[0];
+        fFila.setHours(0,0,0,0);
+        const key = Utilities.formatDate(fFila, "GMT-3", "yyyyMMdd");
+
+        if (fFila < fechaCorte) {
+          resultado.push(fila); // Mantener historial intacto
+        } else {
+          const tieneCarga = (fila[2].toString().trim() !== "" || fila[3].toString().trim() !== "");
+          
+          if (fechasNuevas.has(key)) {
+            // Sigue siendo día de clase
+            if (!tieneCarga && fila[4] !== dictObs[key]) {
+              fila[4] = dictObs[key] || "";
+              cambio = true;
+            }
+            resultado.push(fila);
+            fechasNuevas.delete(key);
+          } else {
+            // Ya no es día de clase según horario nuevo
+            if (tieneCarga) {
+              resultado.push(fila); // Respetar porque tiene datos
+            } else {
+              cambio = true; // Se elimina porque está vacío y no corresponde
+            }
+          }
+        }
+      });
+
+      // Agregar las faltantes
+      if (fechasNuevas.size > 0) {
+        cambio = true;
+        fechasNuevas.forEach(k => {
+          const y = parseInt(k.substring(0,4)), m = parseInt(k.substring(4,6))-1, d = parseInt(k.substring(6,8));
+          resultado.push([new Date(y,m,d), "", "", "", dictObs[k] || ""]);
+        });
+      }
+
+      if (cambio) {
+        resultado.sort((a,b) => a[0].getTime() - b[0].getTime());
+        rango.clearContent();
+        if (resultado.length > 0) {
+          hoja.getRange(3, 1, Math.min(resultado.length, 212), 5).setValues(resultado.slice(0, 212));
+        }
+      }
+    });
+
+    // 4. ACTUALIZAR PROGRESO EN D12 TRAS CADA CURSO
+    cursosTerminados.push(cursoUpper);
+    celdaProgreso.setValue(cursosTerminados.join(", "));
+    SpreadsheetApp.flush();
+  }
+
+  log("✅ Proceso de corrección finalizado.");
 }
