@@ -541,7 +541,7 @@ function actualizarPermisosSemanalesEficiente() {
     if (!(d instanceof Date)) return 0;
     return parseInt(Utilities.formatDate(d, "GMT-3", "yyyyMMdd"));
   };
-
+//pr
   const valCorte = toVal(lunesSemanaPasada);
   const timeStamp = Utilities.formatDate(hoy, "GMT-3", "dd/MM HH:mm");
 
