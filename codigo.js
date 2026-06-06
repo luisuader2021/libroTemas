@@ -282,7 +282,7 @@ function auditoriaSemanalCargas() {
   const MODO_PRUEBA = false;
   const MODO_PRUEBA_2 = false;
   const LIMITE_CURSOS_PRUEBA = null;
-  const EMAIL_ADMIN = "luisoroverde@gmail.com";
+  const EMAIL_ADMIN = "es6planificaciones2020@gmail.com";
   const ss = SpreadsheetApp.openById(CFG.SS_DATA);
   const panel = ss.getSheetByName("Panel de Control");
   const celdaConsola = panel ? panel.getRange("B6") : null;
@@ -351,7 +351,7 @@ function auditoriaSemanalCargas() {
     } catch (e) { log(`❌ Error en ${curso}: ${e.message}`); }
   }
   log(`-----------------------------------`);
-  let informeAdmin = "📊 RESUMEN AUDITORÍA SEMANAL\n\n";
+  let informeAdmin = "📊 Docentes que no completaron libro de temas la semana pasada \n\n";
   for (let pKey in reporteFaltas) {
     const p = reporteFaltas[pKey];
     const emailRealDocente = dictEmails[pKey];
@@ -541,7 +541,7 @@ function actualizarPermisosSemanalesEficiente() {
     if (!(d instanceof Date)) return 0;
     return parseInt(Utilities.formatDate(d, "GMT-3", "yyyyMMdd"));
   };
-//pr
+
   const valCorte = toVal(lunesSemanaPasada);
   const timeStamp = Utilities.formatDate(hoy, "GMT-3", "dd/MM HH:mm");
 
